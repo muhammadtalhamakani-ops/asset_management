@@ -59,9 +59,10 @@ router.get('/assets/:identifier', async (req, res) => {
 // CREATE new asset
 router.post('/assets', async (req, res) => {
   try {
-    const { code, name, type, quantity, unitCost, qrCode: _providedQrCode, ...otherData } = req.body;
+    const { code: requestedCode, name, type, quantity, unitCost, qrCode: _providedQrCode, ...otherData } = req.body;
+    const code = String(requestedCode || '').trim().toUpperCase();
     const requiredFields = ['category', 'department', 'purchaseDate', 'receiveDate'];
-    const missingFields = [!String(code || '').trim() && 'Asset ID / code', ...requiredFields.filter((field) => !String(otherData[field] || '').trim())].filter(Boolean);
+    const missingFields = [!code && 'Asset ID / code', ...requiredFields.filter((field) => !String(otherData[field] || '').trim())].filter(Boolean);
     if (missingFields.length > 0) {
       return res.status(400).json({ success: false, message: `Required fields: ${missingFields.join(', ')}.` });
     }
@@ -70,9 +71,9 @@ router.post('/assets', async (req, res) => {
     }
 
     // Check if code already exists
-    const existing = await Asset.findOne({ code, ownerEmail: req.user.email });
+    const existing = await Asset.findOne({ code }).collation({ locale: 'en', strength: 2 });
     if (existing) {
-      return res.status(400).json({ success: false, message: 'Asset code already exists' });
+      return res.status(409).json({ success: false, message: 'Asset ID / code already exists. Enter a unique code.' });
     }
 
     const totalValue = quantity * unitCost;
@@ -92,6 +93,9 @@ router.post('/assets', async (req, res) => {
     await asset.save();
     res.status(201).json({ success: true, data: asset, message: 'Asset created successfully' });
   } catch (error) {
+    if (error.code === 11000 && error.keyPattern?.code) {
+      return res.status(409).json({ success: false, message: 'Asset ID / code already exists. Enter a unique code.' });
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -103,6 +107,14 @@ router.put('/assets/:id', async (req, res) => {
     const { quantity, unitCost, ...otherData } = req.body;
 
     let updateData = { ...otherData };
+    if (updateData.code !== undefined) updateData.code = String(updateData.code).trim().toUpperCase();
+
+    if (updateData.code) {
+      const duplicate = await Asset.findOne({ code: updateData.code, _id: { $ne: id } }).collation({ locale: 'en', strength: 2 });
+      if (duplicate) {
+        return res.status(409).json({ success: false, message: 'Asset ID / code already exists. Enter a unique code.' });
+      }
+    }
 
     // Recalculate value if quantity or unitCost changed
     if (quantity !== undefined || unitCost !== undefined) {
@@ -127,6 +139,9 @@ router.put('/assets/:id', async (req, res) => {
 
     res.json({ success: true, data: asset, message: 'Asset updated successfully' });
   } catch (error) {
+    if (error.code === 11000 && error.keyPattern?.code) {
+      return res.status(409).json({ success: false, message: 'Asset ID / code already exists. Enter a unique code.' });
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 });
