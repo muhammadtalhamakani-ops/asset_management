@@ -1,0 +1,165 @@
+FIELDSTOCK - CONSTRUCTION ASSET MANAGEMENT PORTAL
+ CONTENT (SLIDE-BY-SLIDE)
+====================================================
+
+
+SLIDE 1 - PROJECT OVERVIEW
+----------------------------------------------------
+FieldStock - Construction Asset Management Portal
+
+- Full-stack web app: React + TypeScript (Vite) frontend, Node.js/Express + MongoDB backend
+- Company profile used for demo data: Al Marasi Construction LLC, Dubai
+- 6 active project sites:
+  1. Dubai Creek Harbour - Tower C
+  2. Business Bay Business Park Extension
+  3. Dubai Marina - Tower 3
+  4. Al Quoz Logistics Hub
+  5. Palm Jumeirah Villa Development
+  6. Jebel Ali Industrial Yard
+- Tracks the full asset lifecycle: register -> receive -> issue -> transfer -> inspect -> return/damage -> audit
+
+
+SLIDE 2 - LOGIN
+----------------------------------------------------
+- Secure sign-in screen with email/password
+- "Keep me signed in" + forgot password option
+- Branded split-screen layout showing live site stats (tracked items, active locations, audit completion)
+- 5 seeded role-based accounts:
+  1. Ahmed Al Mansouri - Site Manager
+  2. Fatima Al Rashid - Admin
+  3. Ravi Kumar - Store Keeper
+  4. Sara Abdullah - Safety Officer
+  5. John D'Souza - Site Engineer
+
+
+SLIDE 3 - DASHBOARD
+----------------------------------------------------
+- KPI cards: total asset value, available stock, issued/in-use, items needing attention
+- Live data: 19 assets, total asset value approx. AED 3,942,540
+- Recent movement activity feed (issues, transfers, receipts, inspections)
+- Stock alerts panel (low stock, inspection due, damaged items)
+- "Assets by location" bar chart across active sites
+- Quick action buttons: Receive delivery / Issue asset / Transfer asset
+
+
+SLIDE 4 - ASSET REGISTER (ASSET MASTER)
+----------------------------------------------------
+- Full 22-field master record per asset:
+  ID, name, type, serial, category, sub-category, description, manufacturer, model,
+  unit, quantity, minimum stock, unit cost, total value, supplier, purchase date,
+  project, location, status, QR code, attachments, remarks
+- Search + filter by location/type/status, paginated table
+- Inline edit/delete per record
+- Sample categories:
+  - Machinery: excavators, tower cranes, concrete mixers, generators
+  - Steel: rebar 16mm/12mm, steel mesh sheets
+  - Materials: cement, plywood formwork, ceramic tiles, curing compound
+  - Hardware: safety helmets, harnesses, power tools, cable reels, fire extinguishers
+  - Scaffolding and Formwork systems
+
+
+SLIDE 5 - INVENTORY
+----------------------------------------------------
+- Stock view across site locations
+- Opening / received / issued / available stock breakdown
+- Example: Rebar 16mm - 1,200 kg at Steel Yard (minimum stock 300 kg)
+- Highlights low-stock items (e.g. Ceramic Floor Tiles flagged "Low stock")
+
+
+SLIDE 6 - RECEIVE ASSETS (GRN & DELIVERIES)
+----------------------------------------------------
+- Record supplier deliveries -> automatically updates inventory
+- GRN-numbered records with supplier, destination, quantity, date, status
+- Live data: 22 total movement records, including receives such as:
+  - Conares Steel -> rebar and mesh deliveries
+  - Al Jaber Building Materials -> cement, PPE restock
+  - RAK Ceramics Trading -> floor tile shipment
+  - Dubai Cable Company -> cable reel stock
+
+
+SLIDE 7 - ISSUE & ALLOCATE
+----------------------------------------------------
+- Allocate assets to responsible teams/individuals with accountability
+- Search/filter by status (Issued / Pending)
+- Example real records:
+  - Excavator CAT 320 -> Earthworks Team (Ahmed Al Mansouri)
+  - Safety Helmets (40 units) -> new inductee batch
+  - Rebar 16mm (300 kg) -> Steel Fixing Team
+  - Power Drill Sets (24) -> MEP Team Zone A
+
+
+SLIDE 8 - TRANSFERS
+----------------------------------------------------
+- Move assets between warehouses, sites, and zones
+- From/To location, quantity, project, status tracking
+- Example real records:
+  - Tower Crane transferred from Al Quoz Logistics Hub -> Dubai Marina Tower 3 (erected on site)
+  - Scaffold Frame Set relocated to Dubai Creek Harbour
+  - Passenger Hoist mobilised to Dubai Marina Tower 3
+
+
+SLIDE 9 - ASSEMBLIES
+----------------------------------------------------
+- Parent-assembly and component (kit) tracking with condition status
+- Live data: 3 assemblies
+  1. Facade Scaffold Assembly (DCH Tower C)
+     - 120/120 frames, 38/40 guard rail posts (Missing) - status: In use
+  2. Core Wall Formwork Set (Business Bay)
+     - 96/100 tie rods (Damaged) - status: Available
+  3. Access Stair Tower (Palm Jumeirah)
+     - 6/8 stair flights (Missing), 14/16 handrails (Damaged) - status: Incomplete
+- Component-level quantity stepper + condition toggle (Pass/Damaged/Missing), persisted to database
+- Create-assembly workflow with dynamic component rows
+- View assembly QR and delete assembly actions
+
+
+SLIDE 10 - QR SCANNER
+----------------------------------------------------
+- Scan or look up assets by ID or QR code
+- Instantly shows current location, assigned party, inspection status
+- Example QR codes: QR-MAC-021, QR-SCF-031, QR-ASM-011
+
+
+SLIDE 11 - INSPECTIONS
+----------------------------------------------------
+- Safety and condition checklists for reusable assets and assemblies
+- Live data: 11 inspections across excavators, tower cranes, mixers, generators,
+  formwork, PPE, fire extinguishers, cable reels
+- Outcomes: mix of Pass / Needs Repair, for example:
+  - Tower Crane - hydraulic leak identified
+  - Diesel Generator - fuel gauge sensor fault
+  - Fire Extinguishers - two units below gauge pressure
+- Corrective action assignment workflow with due dates
+- Fields: last inspection date, inspector name, checklist items, condition (Good/Fair/Poor)
+
+
+SLIDE 12 - RETURNS & DAMAGE
+----------------------------------------------------
+- Records returns, damage, and loss with responsibility and resolution tracking
+- Live data: 5 return/damage/loss records
+  1. Safety Harnesses - 2 damaged (torn stitching), replacement pending
+  2. Power Drill Sets - full clean return
+  3. Plywood Formwork - 3 damaged + 2 missing, under investigation
+  4. Cable Reel - 1 damaged (jacket cut), repair pending
+  5. Curing Compound - 3 drums missing, under investigation
+- Resolution states: Closed / Replacement pending / Repair pending / Under investigation
+
+
+SLIDE 13 - REPORTS & AUDIT
+----------------------------------------------------
+- Exportable CSV audit trail of every movement
+- Aggregate metrics: current stock, total asset value, open variance count, audit event count
+- Full chronological history: who recorded each action, from/to location, timestamps
+
+
+SLIDE 14 - ARCHITECTURE & TECH STACK
+----------------------------------------------------
+- Frontend: React 18 + TypeScript, Vite, custom CSS design system
+- Backend: Node.js/Express REST API, MongoDB (Mongoose ODM)
+- Database collections: assets, movements, inspections, returns, assemblies, users
+- All screens are fully wired to live MongoDB data - no mock/static data remaining
+
+
+====================================================
+END OF PRESENTATION CONTENT
+====================================================
