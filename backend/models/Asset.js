@@ -53,6 +53,10 @@ const assetSchema = new mongoose.Schema(
       type: String,
       default: 'Not recorded',
     },
+    warranty: {
+      type: String,
+      default: 'Not recorded',
+    },
     quantity: {
       type: Number,
       required: true,
