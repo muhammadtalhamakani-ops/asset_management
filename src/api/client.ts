@@ -10,7 +10,39 @@ const apiFetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
 };
 
 // Asset APIs
+export type SetupMasterRecord = { _id: string; name: string; isActive: boolean };
+export type SetupItemRecord = { _id: string; code: string; name: string; parentId: string; isActive: boolean; systemKey?: string };
+type SetupResponse<T> = { success: boolean; data?: T; message?: string; count?: number };
+export type DashboardGroup = { _id: string | null; name: string; count: number; isActive: boolean; systemKey?: string };
+export type DashboardSummary = { totalAssets: number; totalValue: number; byCategory: DashboardGroup[]; byStatus: DashboardGroup[]; byProject: DashboardGroup[] };
+
+export const setupAPI = {
+  getMasters: (signal?: AbortSignal): Promise<SetupResponse<SetupMasterRecord[]>> =>
+    apiFetch(`${API_BASE_URL}/setup-masters`, { signal }).then((res) => res.json()),
+  getItems: (parentId: string, signal?: AbortSignal): Promise<SetupResponse<SetupItemRecord[]>> =>
+    apiFetch(`${API_BASE_URL}/setup-items/${encodeURIComponent(parentId)}`, { signal }).then((res) => res.json()),
+  create: (parentId: string, name: string): Promise<SetupResponse<SetupItemRecord>> =>
+    apiFetch(`${API_BASE_URL}/setup-items`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ parentId, name }),
+    }).then((res) => res.json()),
+  update: (parentId: string, id: string, name: string): Promise<SetupResponse<SetupItemRecord>> =>
+    apiFetch(`${API_BASE_URL}/setup-items/${encodeURIComponent(parentId)}/${encodeURIComponent(id)}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }),
+    }).then((res) => res.json()),
+  delete: (parentId: string, id: string): Promise<SetupResponse<SetupItemRecord>> =>
+    apiFetch(`${API_BASE_URL}/setup-items/${encodeURIComponent(parentId)}/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }).then((res) => res.json()),
+};
+
 export const assetAPI = {
+  getProjects: (signal?: AbortSignal) => apiFetch(`${API_BASE_URL}/projects`, { signal }).then((res) => res.json()),
+  saveForm: (form: FormData, id?: string) => apiFetch(`${API_BASE_URL}/assets${id ? `/${encodeURIComponent(id)}` : ''}`, { method: id ? 'PUT' : 'POST', body: form }).then((res) => res.json()),
+  downloadAttachment: async (id: string, attachmentId: string) => {
+    const response = await apiFetch(`${API_BASE_URL}/assets/${encodeURIComponent(id)}/attachments/${encodeURIComponent(attachmentId)}`);
+    if (!response.ok) throw new Error('Unable to download attachment.');
+    return response.blob();
+  },
   getAll: (filters: ApiFilters = {}) => {
     const params = new URLSearchParams(filters).toString();
     return apiFetch(`${API_BASE_URL}/assets${params ? `?${params}` : ''}`).then((res) => res.json());
@@ -35,7 +67,7 @@ export const assetAPI = {
   delete: (id: string) =>
     apiFetch(`${API_BASE_URL}/assets/${id}`, { method: 'DELETE' }).then((res) => res.json()),
 
-  getStatistics: () => apiFetch(`${API_BASE_URL}/assets-stats/summary`).then((res) => res.json()),
+  getStatistics: (signal?: AbortSignal): Promise<SetupResponse<DashboardSummary>> => apiFetch(`${API_BASE_URL}/assets-stats/summary`, { signal }).then((res) => res.json()),
 
   updateStock: (id: string, quantityChange: number) =>
     apiFetch(`${API_BASE_URL}/assets/${id}/stock`, {
@@ -47,6 +79,10 @@ export const assetAPI = {
 
 export const supplierAPI = {
   getAll: () => apiFetch(`${API_BASE_URL}/suppliers`).then((res) => res.json()),
+  update: (id: string, supplierData: ApiPayload) => apiFetch(`${API_BASE_URL}/suppliers/${encodeURIComponent(id)}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(supplierData),
+  }).then((res) => res.json()),
+  delete: (id: string) => apiFetch(`${API_BASE_URL}/suppliers/${encodeURIComponent(id)}`, { method: 'DELETE' }).then((res) => res.json()),
   create: (supplierData: ApiPayload) =>
     apiFetch(`${API_BASE_URL}/suppliers`, {
       method: 'POST',

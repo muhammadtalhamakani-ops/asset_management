@@ -1,7 +1,10 @@
 import express from 'express';
+import crypto from 'node:crypto';
+import { assetData, setAssetStatus, hasAssetStatus, invalid } from '../assetCatalog.js';
 import { Movement } from '../models/Movement.js';
 import { Asset } from '../models/Asset.js';
 import { requireAuth } from '../middleware/auth.js';
+import { receivingFields, movementsData } from '../receiving.js';
 
 const router = express.Router();
 router.use(requireAuth);
@@ -10,7 +13,7 @@ router.use(requireAuth);
 router.get('/movements', async (req, res) => {
   try {
     const { type, status, project, dateFrom, dateTo, assetCode } = req.query;
-    let query = { ownerEmail: req.user.email };
+    let query = {};
 
     if (type) query.type = type;
     if (status) query.status = status;
@@ -27,68 +30,45 @@ router.get('/movements', async (req, res) => {
       .limit(500)
       .populate('assetId');
 
-    res.json({ success: true, data: movements, count: movements.length });
+    res.json({ success: true, data: await movementsData(movements), count: movements.length });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 
 // GET single movement
 router.get('/movements/:id', async (req, res) => {
   try {
-    const movement = await Movement.findOne({ _id: req.params.id, ownerEmail: req.user.email }).populate('assetId');
+    const movement = await Movement.findOne({ _id: req.params.id }).populate('assetId');
     if (!movement) {
       return res.status(404).json({ success: false, message: 'Movement not found' });
     }
-    res.json({ success: true, data: movement });
+    res.json({ success: true, data: (await movementsData([movement]))[0] });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 
 // CREATE receive movement
 router.post('/movements/receive', async (req, res) => {
   try {
-    const { assetCode, quantity, supplier, grn, billNo, project, remarks, recordedBy } = req.body;
-
-    const asset = await Asset.findOne({ code: assetCode, ownerEmail: req.user.email });
-    if (!asset) {
-      return res.status(404).json({ success: false, message: 'Asset not found' });
-    }
-
-    const movementId = `GRN-${Date.now().toString().slice(-4)}`;
-    const movement = new Movement({
-      id: movementId,
-      type: 'receive',
-      assetId: asset._id,
-      assetCode: asset.code,
-      assetName: asset.name,
-      quantity,
-      unit: asset.unit,
-      toLocation: asset.location,
-      supplier,
-      grn,
-      billNo,
-      status: 'Received',
-      remarks,
-      recordedBy,
-      ownerEmail: req.user.email,
-      project: project || asset.project,
-    });
+    const { asset, data } = await receivingFields(req.body);
+    const quantity = data.quantity;
+    const movement = new Movement({ ...data, id: `GRN-${crypto.randomUUID()}`, type: 'receive', status: 'Received' });
 
     await movement.save();
 
     // Update asset quantity
     asset.quantity += quantity;
     asset.value = `AED ${(asset.quantity * asset.unitCost).toLocaleString()}`;
-    if (asset.quantity >= asset.minimum && asset.status === 'Low stock') {
-      asset.status = 'Available';
+    if (asset.quantity >= asset.minimum && await hasAssetStatus(asset, 'lowStock')) {
+      await setAssetStatus(asset, 'available');
     }
-    await asset.save();
+    await asset.save({ validateModifiedOnly: true });
 
-    res.status(201).json({ success: true, data: movement, message: 'Receiving recorded successfully' });
+    res.status(201).json({ success: true, data: (await movementsData([movement]))[0], asset: await assetData(asset), message: 'Receiving recorded successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 
@@ -97,7 +77,7 @@ router.post('/movements/issue', async (req, res) => {
   try {
     const { assetCode, quantity, recipientName, billNo, project, remarks, recordedBy } = req.body;
 
-    const asset = await Asset.findOne({ code: assetCode, ownerEmail: req.user.email });
+    const asset = await Asset.findOne({ code: assetCode, isActive: true });
     if (!asset) {
       return res.status(404).json({ success: false, message: 'Asset not found' });
     }
@@ -106,7 +86,8 @@ router.post('/movements/issue', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Insufficient stock' });
     }
 
-    const movementId = `ISS-${Date.now().toString().slice(-4)}`;
+    if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity <= 0) throw invalid('Quantity must be greater than zero.');
+    const movementId = `ISS-${crypto.randomUUID()}`;
     const movement = new Movement({
       id: movementId,
       type: 'issue',
@@ -121,7 +102,6 @@ router.post('/movements/issue', async (req, res) => {
       status: 'Issued',
       remarks,
       recordedBy,
-      ownerEmail: req.user.email,
       project: project || asset.project,
     });
 
@@ -130,15 +110,15 @@ router.post('/movements/issue', async (req, res) => {
     // Update asset quantity and status
     asset.quantity -= quantity;
     asset.value = `AED ${(asset.quantity * asset.unitCost).toLocaleString()}`;
-    asset.status = 'In use';
+    await setAssetStatus(asset, 'inUse');
     if (asset.quantity < asset.minimum) {
-      asset.status = 'Low stock';
+      await setAssetStatus(asset, 'lowStock');
     }
-    await asset.save();
+    await asset.save({ validateModifiedOnly: true });
 
-    res.status(201).json({ success: true, data: movement, message: 'Issue recorded successfully' });
+    res.status(201).json({ success: true, data: movement, asset: await assetData(asset), message: 'Issue recorded successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 
@@ -147,7 +127,7 @@ router.post('/movements/transfer', async (req, res) => {
   try {
     const { assetCode, quantity, fromLocation, toLocation, project, remarks, recordedBy } = req.body;
 
-    const asset = await Asset.findOne({ code: assetCode, ownerEmail: req.user.email });
+    const asset = await Asset.findOne({ code: assetCode, isActive: true });
     if (!asset) {
       return res.status(404).json({ success: false, message: 'Asset not found' });
     }
@@ -156,7 +136,8 @@ router.post('/movements/transfer', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Insufficient stock' });
     }
 
-    const movementId = `TRF-${Date.now().toString().slice(-4)}`;
+    if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity <= 0) throw invalid('Quantity must be greater than zero.');
+    const movementId = `TRF-${crypto.randomUUID()}`;
     const movement = new Movement({
       id: movementId,
       type: 'transfer',
@@ -170,7 +151,6 @@ router.post('/movements/transfer', async (req, res) => {
       status: 'Transferred',
       remarks,
       recordedBy,
-      ownerEmail: req.user.email,
       project: project || asset.project,
     });
 
@@ -178,40 +158,48 @@ router.post('/movements/transfer', async (req, res) => {
 
     // Update asset location
     asset.location = toLocation;
-    asset.status = 'In transit';
-    await asset.save();
+    await setAssetStatus(asset, 'inTransit');
+    await asset.save({ validateModifiedOnly: true });
 
-    res.status(201).json({ success: true, data: movement, message: 'Transfer recorded successfully' });
+    res.status(201).json({ success: true, data: movement, asset: await assetData(asset), message: 'Transfer recorded successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 
 // UPDATE movement
 router.put('/movements/:id', async (req, res) => {
   try {
-    const updates = { ...req.body };
-    delete updates.ownerEmail;
-    const movement = await Movement.findOneAndUpdate({ _id: req.params.id, ownerEmail: req.user.email }, updates, { new: true });
+    const existing = await Movement.findById(req.params.id);
+    if (!existing) return res.status(404).json({ success: false, message: 'Movement not found' });
+    if (existing.type === 'receive' && ['assetId', 'assetCode', 'assetName', 'supplierId', 'supplier', 'project_id', 'project'].some((field) => req.body[field] !== undefined)) throw invalid('Receiving relations cannot be changed.');
+    const updates = {};
+    for (const field of ['remarks', 'fromLocation', 'toLocation', 'project', 'status']) {
+      if (req.body[field] !== undefined) {
+        if (typeof req.body[field] !== 'string') throw invalid(`${field} must be text.`);
+        updates[field] = req.body[field];
+      }
+    }
+    const movement = await Movement.findOneAndUpdate({ _id: req.params.id }, updates, { new: true, runValidators: true });
     if (!movement) {
       return res.status(404).json({ success: false, message: 'Movement not found' });
     }
-    res.json({ success: true, data: movement, message: 'Movement updated successfully' });
+    res.json({ success: true, data: (await movementsData([movement]))[0], message: 'Movement updated successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 
 // DELETE movement
 router.delete('/movements/:id', async (req, res) => {
   try {
-    const movement = await Movement.findOneAndDelete({ _id: req.params.id, ownerEmail: req.user.email });
+    const movement = await Movement.findOneAndDelete({ _id: req.params.id });
     if (!movement) {
       return res.status(404).json({ success: false, message: 'Movement not found' });
     }
     res.json({ success: true, message: 'Movement deleted successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 

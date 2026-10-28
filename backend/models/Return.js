@@ -87,12 +87,6 @@ const returnSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    ownerEmail: {
-      type: String,
-      required: true,
-      index: true,
-      default: 'system@fieldstock.local',
-    },
   },
   {
     timestamps: true,

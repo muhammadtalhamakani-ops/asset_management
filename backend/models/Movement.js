@@ -43,6 +43,8 @@ const movementSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    supplierId: { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier', index: true },
+    project_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', index: true },
     supplier: {
       type: String,
       default: null,
@@ -76,12 +78,6 @@ const movementSchema = new mongoose.Schema(
     recordedBy: {
       type: String,
       required: true,
-    },
-    ownerEmail: {
-      type: String,
-      required: true,
-      index: true,
-      default: 'system@fieldstock.local',
     },
     project: {
       type: String,

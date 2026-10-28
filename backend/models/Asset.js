@@ -7,6 +7,9 @@ const assetSchema = new mongoose.Schema(
       required: true,
       unique: true,
       index: true,
+      trim: true,
+      uppercase: true,
+      immutable: true,
     },
     name: {
       type: String,
@@ -15,7 +18,6 @@ const assetSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      required: true,
       enum: ['Countable / Consumable', 'Material', 'Reusable asset', 'Scaffolding', 'Formwork', 'Assembly / Kit'],
     },
     serial: {
@@ -60,22 +62,26 @@ const assetSchema = new mongoose.Schema(
     quantity: {
       type: Number,
       required: true,
-      default: 0,
+      default: 1,
+      min: 0,
     },
     unit: {
       type: String,
       required: true,
-      enum: ['pieces', 'units', 'meters', 'kg', 't', 'set', 'box', 'packet'],
+      enum: ['unit', 'pieces', 'units', 'meters', 'kg', 't', 'set', 'box', 'packet'],
+      default: 'unit',
     },
     minimum: {
       type: Number,
       required: true,
       default: 0,
+      min: 0,
     },
     unitCost: {
       type: Number,
       required: true,
       default: 0,
+      min: 0,
     },
     value: {
       type: String,
@@ -85,6 +91,7 @@ const assetSchema = new mongoose.Schema(
       type: String,
       default: 'Not recorded',
     },
+    deliveryNote: { type: String, trim: true },
     purchaseDate: {
       type: Date,
       required: true,
@@ -107,7 +114,6 @@ const assetSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Available', 'In use', 'In transit', 'Low stock', 'Under inspection', 'Damaged'],
       default: 'Available',
       index: true,
     },
@@ -117,10 +123,18 @@ const assetSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
     },
-    attachments: {
-      type: String,
-      default: 'No files',
-    },
+    attachments: [{ originalName: String, mimeType: String, size: Number, storageKey: { type: String, select: false } }],
+    legacyAttachments: { type: String, default: '' },
+    categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'SetupItem', index: true },
+    departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'SetupItem', index: true },
+    makeId: { type: mongoose.Schema.Types.ObjectId, ref: 'SetupItem' },
+    modelId: { type: mongoose.Schema.Types.ObjectId, ref: 'SetupItem' },
+    warrantyId: { type: mongoose.Schema.Types.ObjectId, ref: 'SetupItem' },
+    statusId: { type: mongoose.Schema.Types.ObjectId, ref: 'SetupItem', index: true },
+    statusKey: { type: String, default: '' },
+    supplierId: { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier' },
+    project_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', index: true },
+    isActive: { type: Boolean, default: true, index: true },
     remarks: {
       type: String,
       default: 'No remarks',
@@ -133,15 +147,10 @@ const assetSchema = new mongoose.Schema(
       type: String,
       default: 'System',
     },
-    ownerEmail: {
-      type: String,
-      required: true,
-      index: true,
-      default: 'system@fieldstock.local',
-    },
   },
   {
     timestamps: true,
+    optimisticConcurrency: true,
   }
 );
 

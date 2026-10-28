@@ -1,0 +1,22 @@
+.search-select { display: block; position: relative; width: 100%; min-width: 0; color: #24354c; }
+.search-select-native { position: absolute !important; width: 1px !important; height: 1px !important; opacity: 0; pointer-events: none; padding: 0 !important; }
+.search-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-width: 0; min-height: 40px; padding: 10px 34px 10px 12px; border: 1px solid #dbe2eb; border-radius: 7px; background: white; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.search-select-trigger > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-select-trigger > svg { flex-shrink: 0; }
+.search-select-clear { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; padding: 3px; border: 0; background: #edf1f6; color: #53637a; border-radius: 4px; cursor: pointer; }
+.search-select:has(.search-select-native:disabled) .search-select-trigger { opacity: .6; pointer-events: none; }
+.search-select:has(.search-select-native:disabled) .search-select-clear { display: none; }
+.search-select-trigger[aria-invalid=true] { border-color: #dc2626; }
+.search-select-trigger:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.search-select-popup { position: fixed; z-index: 10000; display: flex; flex-direction: column; box-sizing: border-box; border: 1px solid #dbe2eb; border-radius: 8px; background: white; padding: 6px; box-shadow: 0 8px 28px #142c4c26; overflow: hidden; font: 13px/1.4 Arial, sans-serif; }
+.search-select-popup > input { flex-shrink: 0; width: 100%; box-sizing: border-box; padding: 9px; border: 1px solid #ccd6e3; border-radius: 5px; }
+.search-select-popup [role=listbox] { overflow-y: auto; min-height: 0; margin-top: 5px; }
+.search-select-popup [role=option] { display: block; width: 100%; padding: 9px; border: 0; background: white; text-align: left; color: #24354c; cursor: pointer; overflow-wrap: anywhere; }
+.search-select-popup [role=option].highlighted { background: #edf4ff; }
+.search-select-popup [aria-selected=true] { color: #075bd8; font-weight: 600; }
+.search-select-popup p { padding: 8px; }
+.portal-toolbar > .search-select, .issue-filters > .search-select { width: 180px; flex-shrink: 0; }
+.search-select-error { display: block; margin-top: 5px; color: #c62828; font-size: 12px; }
+
+.asset-master-row > .row-actions { flex-wrap: wrap; white-space: normal; overflow: visible; }
+.project-switch > span { min-width: 0; }

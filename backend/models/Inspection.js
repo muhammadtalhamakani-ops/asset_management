@@ -76,12 +76,6 @@ const inspectionSchema = new mongoose.Schema(
       default: Date.now,
       index: true,
     },
-    ownerEmail: {
-      type: String,
-      required: true,
-      index: true,
-      default: 'system@fieldstock.local',
-    },
   },
   {
     timestamps: true,

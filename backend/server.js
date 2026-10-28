@@ -12,6 +12,10 @@ import returnRoutes from './routes/returnRoutes.js';
 import assemblyRoutes from './routes/assemblyRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import supplierRoutes from './routes/supplierRoutes.js';
+import setupRoutes from './routes/setupRoutes.js';
+import { initializeSetup } from './setup.js';
+import { initializeSuppliers } from './suppliers.js';
+import { initializeAssetCatalog } from './assetCatalog.js';
 
 // Load environment variables
 dotenv.config();
@@ -26,11 +30,14 @@ app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
 // MongoDB Connection
-mongoose.connect(MONGODB_URI, {
+const setupReady = mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-  .then(() => {
+  .then(async () => {
+    await initializeSetup();
+    await initializeSuppliers();
+    await initializeAssetCatalog();
     console.log('✅ Connected to MongoDB successfully');
   })
   .catch((error) => {
@@ -49,12 +56,34 @@ app.get('/api/health', (req, res) => {
 
 // API Routes
 app.use('/api', authRoutes);
+app.use('/api', async (req, res, next) => {
+  if (!/^\/(assets|assets-stats|projects|movements|inspections|returns)(\/|$)/.test(req.path)) return next();
+  try { await setupReady; next(); }
+  catch { res.status(503).json({ success: false, message: 'Asset services are unavailable.' }); }
+});
 app.use('/api', assetRoutes);
 app.use('/api', movementRoutes);
 app.use('/api', inspectionRoutes);
 app.use('/api', returnRoutes);
 app.use('/api', assemblyRoutes);
-app.use('/api', supplierRoutes);
+app.use('/api', async (req, res, next) => {
+  if (!/^\/suppliers(\/|$)/.test(req.path)) return next();
+  try {
+    await setupReady;
+    supplierRoutes(req, res, next);
+  } catch {
+    res.status(503).json({ success: false, message: 'Supplier Setup is unavailable.' });
+  }
+});
+app.use('/api', async (req, res, next) => {
+  if (!/^\/setup-(masters|items)(\/|$)/.test(req.path)) return next();
+  try {
+    await setupReady;
+    setupRoutes(req, res, next);
+  } catch {
+    res.status(503).json({ success: false, message: 'General Setup is unavailable.' });
+  }
+});
 
 // Root route
 app.get('/', (req, res) => {

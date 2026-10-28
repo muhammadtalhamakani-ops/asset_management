@@ -1,0 +1,13 @@
+.general-setup-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.setup-card { min-width: 0; padding: 20px; }
+.setup-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.setup-card-head h3 { margin: 0; color: #29445a; }
+.setup-table-wrap { height: 252px; overflow: auto; }
+.setup-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+.setup-table th { position: sticky; top: 0; z-index: 1; height: 40px; background: #fafcfc; color: #718696; font-size: 11px; }
+.setup-table th, .setup-table td { padding: 12px 8px; border-bottom: 1px solid #edf1f3; }
+.setup-table td { box-sizing: border-box; height: 53px; white-space: nowrap; }
+.setup-table td:first-child { white-space: nowrap; }
+.setup-table .row-actions { display: flex; gap: 8px; }
+.setup-modal .form-description { padding: 16px 24px; }
+@media (max-width: 899px) { .general-setup-grid { grid-template-columns: minmax(0, 1fr); } }

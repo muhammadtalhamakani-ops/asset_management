@@ -1,0 +1,29 @@
+.asset-register-modal { width: min(1000px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; }
+.asset-register-modal .asset-form-fields { display: block; flex: 1; overflow-y: auto; min-height: 0; margin: 0; padding: 0; }
+.asset-register-modal fieldset { border: 0; padding: 16px 2px; margin: 0; min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.asset-register-modal fieldset > *, .asset-register-modal label { min-width: 0; }
+.asset-register-modal label { align-content: start; }
+.asset-register-modal input, .asset-register-modal select, .asset-register-modal textarea { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; }
+.asset-register-modal select { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asset-register-modal .asset-field-error { display: block; color: #c62828; font-size: 11px; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+.asset-register-modal [aria-invalid='true'] { border-color: #c62828; }
+.asset-date-picker:has([aria-invalid='true']) { border-color: #c62828; }
+.asset-register-modal > div, .asset-register-modal > footer { flex-shrink: 0; }
+.asset-register-modal .wide { grid-column: 1 / -1; }
+.asset-register-modal h3 { margin: 0; color: #29445a; }
+.asset-date-picker { display: block; position: relative; min-height: 40px; background: #fff; border: 1px solid #d7e2e8; border-radius: 5px; }
+.asset-date-picker > span { display: block; padding: 12px; color: #29445a; font-size: 12px; }
+.asset-date-picker input[type='date'] { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+.asset-date-picker input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; }
+.asset-date-picker:focus-within { outline: 2px solid #146fbd; }
+.asset-dates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.asset-attachments { margin: 0; padding: 0; list-style: none; }
+.asset-attachments li { display: flex; justify-content: space-between; gap: 12px; margin: 5px 0; overflow-wrap: anywhere; }
+.asset-register-modal input:read-only, .asset-register-modal input:disabled { background: #edf1f3; color: #637b8b; }
+@media (max-width: 700px) { .asset-register-modal fieldset, .asset-dates { grid-template-columns: minmax(0, 1fr); } }
+.asset-master-table .portal-table-head, .asset-master-table .asset-master-row { grid-template-columns: repeat(24, minmax(140px, 1fr)) 120px; min-width: 3480px; }
+.asset-master-table.inventory-view .portal-table-head, .asset-master-table.inventory-view .asset-master-row { grid-template-columns: repeat(24, minmax(140px, 1fr)) 240px 120px; min-width: 3720px; }
+
+.asset-master-row > .asset-row-actions { flex-wrap: nowrap; gap: 5px; }
+.asset-row-actions button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 28px; height: 28px; padding: 0; }
+.asset-row-actions button:focus-visible { outline: 2px solid #146fbd; outline-offset: 2px; }

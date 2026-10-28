@@ -1,4 +1,6 @@
 import express from 'express';
+import crypto from 'node:crypto';
+import { assetData, setAssetStatus, invalid } from '../assetCatalog.js';
 import { Return } from '../models/Return.js';
 import { Asset } from '../models/Asset.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -10,7 +12,7 @@ router.use(requireAuth);
 router.get('/returns', async (req, res) => {
   try {
     const { type, resolution, dateFrom, dateTo, responsibleParty } = req.query;
-    let query = { ownerEmail: req.user.email };
+    let query = {};
 
     if (type) query.type = type;
     if (resolution) query.resolution = resolution;
@@ -27,20 +29,20 @@ router.get('/returns', async (req, res) => {
 
     res.json({ success: true, data: returns, count: returns.length });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 
 // GET single return record
 router.get('/returns/:id', async (req, res) => {
   try {
-    const returnRecord = await Return.findOne({ _id: req.params.id, ownerEmail: req.user.email }).populate('assetId');
+    const returnRecord = await Return.findOne({ _id: req.params.id }).populate('assetId');
     if (!returnRecord) {
       return res.status(404).json({ success: false, message: 'Return record not found' });
     }
     res.json({ success: true, data: returnRecord });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 
@@ -64,12 +66,15 @@ router.post('/returns', async (req, res) => {
       remarks,
     } = req.body;
 
-    const asset = await Asset.findOne({ code: assetCode, ownerEmail: req.user.email });
+    const asset = await Asset.findOne({ code: assetCode, isActive: true });
     if (!asset) {
       return res.status(404).json({ success: false, message: 'Asset not found' });
     }
 
-    const recordId = `RTN-${Date.now().toString().slice(-4)}`;
+    for (const value of [quantityIssued, quantityReturned ?? 0, quantityDamaged ?? 0, quantityMissing ?? 0]) {
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) throw invalid('Return quantities must be nonnegative numbers.');
+    }
+    const recordId = `RTN-${crypto.randomUUID()}`;
     const returnRecord = new Return({
       id: recordId,
       assetId: asset._id,
@@ -87,7 +92,6 @@ router.post('/returns', async (req, res) => {
       responsibleParty,
       location,
       recordedBy,
-      ownerEmail: req.user.email,
       remarks,
       replacementCost: quantityDamaged ? quantityDamaged * asset.unitCost : 0,
     });
@@ -101,15 +105,15 @@ router.post('/returns', async (req, res) => {
 
     // Update asset status if damaged
     if (quantityDamaged > 0) {
-      asset.status = 'Damaged';
+      await setAssetStatus(asset, 'damaged');
     }
 
     asset.value = `AED ${(asset.quantity * asset.unitCost).toLocaleString()}`;
-    await asset.save();
+    await asset.save({ validateModifiedOnly: true });
 
-    res.status(201).json({ success: true, data: returnRecord, message: 'Return record created successfully' });
+    res.status(201).json({ success: true, data: returnRecord, asset: await assetData(asset), message: 'Return record created successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 
@@ -118,7 +122,7 @@ router.put('/returns/:id', async (req, res) => {
   try {
     const { resolution, replacementCost, remarks } = req.body;
 
-    const returnRecord = await Return.findOne({ _id: req.params.id, ownerEmail: req.user.email });
+    const returnRecord = await Return.findOne({ _id: req.params.id });
     if (!returnRecord) {
       return res.status(404).json({ success: false, message: 'Return record not found' });
     }
@@ -131,30 +135,30 @@ router.put('/returns/:id', async (req, res) => {
 
     res.json({ success: true, data: returnRecord, message: 'Return record updated successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 
 // DELETE return record
 router.delete('/returns/:id', async (req, res) => {
   try {
-    const returnRecord = await Return.findOneAndDelete({ _id: req.params.id, ownerEmail: req.user.email });
+    const returnRecord = await Return.findOneAndDelete({ _id: req.params.id });
     if (!returnRecord) {
       return res.status(404).json({ success: false, message: 'Return record not found' });
     }
     res.json({ success: true, message: 'Return record deleted successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 
 // Get return statistics
 router.get('/returns-stats/summary', async (req, res) => {
   try {
-    const totalReturns = await Return.countDocuments({ ownerEmail: req.user.email });
+    const totalReturns = await Return.countDocuments({});
     const byType = await Return.aggregate([
       {
-        $match: { ownerEmail: req.user.email },
+        $match: {},
       },
       {
         $group: {
@@ -167,7 +171,7 @@ router.get('/returns-stats/summary', async (req, res) => {
 
     const byResolution = await Return.aggregate([
       {
-        $match: { ownerEmail: req.user.email },
+        $match: {},
       },
       {
         $group: {
@@ -186,7 +190,7 @@ router.get('/returns-stats/summary', async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 

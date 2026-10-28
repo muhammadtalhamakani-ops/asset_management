@@ -1,4 +1,6 @@
 import express from 'express';
+import crypto from 'node:crypto';
+import { assetData, setAssetStatus, hasAssetStatus, invalid } from '../assetCatalog.js';
 import { Inspection } from '../models/Inspection.js';
 import { Asset } from '../models/Asset.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -10,7 +12,7 @@ router.use(requireAuth);
 router.get('/inspections', async (req, res) => {
   try {
     const { status, assetCode, dateFrom, dateTo } = req.query;
-    let query = { ownerEmail: req.user.email };
+    let query = {};
 
     if (status) query.status = status;
     if (assetCode) query.assetCode = assetCode;
@@ -26,20 +28,20 @@ router.get('/inspections', async (req, res) => {
 
     res.json({ success: true, data: inspections, count: inspections.length });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 
 // GET single inspection
 router.get('/inspections/:id', async (req, res) => {
   try {
-    const inspection = await Inspection.findOne({ _id: req.params.id, ownerEmail: req.user.email }).populate('assetId');
+    const inspection = await Inspection.findOne({ _id: req.params.id }).populate('assetId');
     if (!inspection) {
       return res.status(404).json({ success: false, message: 'Inspection not found' });
     }
     res.json({ success: true, data: inspection });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 
@@ -48,12 +50,12 @@ router.post('/inspections', async (req, res) => {
   try {
     const { assetCode, type, checklist, condition, status, location, inspector, nextInspectionDue, remarks } = req.body;
 
-    const asset = await Asset.findOne({ code: assetCode, ownerEmail: req.user.email });
+    const asset = await Asset.findOne({ code: assetCode, isActive: true });
     if (!asset) {
       return res.status(404).json({ success: false, message: 'Asset not found' });
     }
 
-    const inspectionId = `INSP-${Date.now().toString().slice(-4)}`;
+    const inspectionId = `INSP-${crypto.randomUUID()}`;
     const inspection = new Inspection({
       id: inspectionId,
       assetId: asset._id,
@@ -67,23 +69,22 @@ router.post('/inspections', async (req, res) => {
       inspector,
       nextInspectionDue: nextInspectionDue ? new Date(nextInspectionDue) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       remarks,
-      ownerEmail: req.user.email,
     });
 
     await inspection.save();
 
     // Update asset status based on inspection
-    if (status === 'Pass' && asset.status === 'Under inspection') {
-      asset.status = 'Available';
+    if (status === 'Pass' && await hasAssetStatus(asset, 'underInspection')) {
+      await setAssetStatus(asset, 'available');
     } else if (status === 'Fail' || status === 'Needs Repair') {
-      asset.status = 'Damaged';
+      await setAssetStatus(asset, 'damaged');
     }
     asset.lastModifiedBy = inspector?.name || 'System';
-    await asset.save();
+    await asset.save({ validateModifiedOnly: true });
 
-    res.status(201).json({ success: true, data: inspection, message: 'Inspection recorded successfully' });
+    res.status(201).json({ success: true, data: inspection, asset: await assetData(asset), message: 'Inspection recorded successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 
@@ -92,7 +93,7 @@ router.put('/inspections/:id', async (req, res) => {
   try {
     const { checklist, condition, status, correctionActions, nextInspectionDue } = req.body;
 
-    const inspection = await Inspection.findOne({ _id: req.params.id, ownerEmail: req.user.email });
+    const inspection = await Inspection.findOne({ _id: req.params.id });
     if (!inspection) {
       return res.status(404).json({ success: false, message: 'Inspection not found' });
     }
@@ -104,35 +105,36 @@ router.put('/inspections/:id', async (req, res) => {
     inspection.nextInspectionDue = nextInspectionDue || inspection.nextInspectionDue;
 
 
+    const asset = await Asset.findOne({ _id: inspection.assetId, isActive: true });
+    if (!asset) throw invalid('Active asset not found.', 404);
     await inspection.save();
 
     // Update asset status
-    const asset = await Asset.findOne({ _id: inspection.assetId, ownerEmail: req.user.email });
     if (asset) {
       if (inspection.status === 'Pass') {
-        asset.status = 'Available';
+        await setAssetStatus(asset, 'available');
       } else if (inspection.status === 'Fail' || inspection.status === 'Needs Repair') {
-        asset.status = 'Damaged';
+        await setAssetStatus(asset, 'damaged');
       }
-      await asset.save();
+      await asset.save({ validateModifiedOnly: true });
     }
 
-    res.json({ success: true, data: inspection, message: 'Inspection updated successfully' });
+    res.json({ success: true, data: inspection, asset: await assetData(asset), message: 'Inspection updated successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 
 // DELETE inspection
 router.delete('/inspections/:id', async (req, res) => {
   try {
-    const inspection = await Inspection.findOneAndDelete({ _id: req.params.id, ownerEmail: req.user.email });
+    const inspection = await Inspection.findOneAndDelete({ _id: req.params.id });
     if (!inspection) {
       return res.status(404).json({ success: false, message: 'Inspection not found' });
     }
     res.json({ success: true, message: 'Inspection deleted successfully' });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.status || (error.name === 'ValidationError' ? 400 : error.name === 'VersionError' ? 409 : 500)).json({ success: false, message: error.status ? error.message : error.name === 'VersionError' ? 'Asset changed. Reload and try again.' : error.name === 'ValidationError' ? 'Invalid workflow data.' : 'Unable to complete the request.' });
   }
 });
 

@@ -13,6 +13,7 @@ export async function loadDashboardData() {
   try {
     // Get asset statistics
     const stats = await assetAPI.getStatistics();
+    if (!stats.success || !stats.data) throw new Error(stats.message || 'Unable to load asset statistics.');
     
     // Get recent movements
     const recentMovements = await movementAPI.getAll({ status: 'Received' });
