@@ -36,6 +36,9 @@ router.post('/auth/login', async (req, res) => {
 
 // POST /api/auth/register - create a login user (helper for seeding accounts)
 router.post('/auth/register', async (req, res) => {
+  if (process.env.ALLOW_REGISTRATION !== 'true' || process.env.SERVE_FRONTEND === 'true') {
+    return res.status(403).json({ success: false, message: 'Public registration is disabled. Contact your team administrator.' });
+  }
   try {
     const { email, password, name, role } = req.body;
     if (!email || !password) {

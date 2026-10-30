@@ -5,6 +5,7 @@
   "description": "Asset Management Portal Backend",
   "main": "server.js",
   "scripts": {
+    "test:demo": "node --test tests/demo.test.js",
     "dev": "node --watch server.js",
     "start": "node server.js",
     "seed": "node seed.js",

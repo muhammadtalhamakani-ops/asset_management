@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 
 // Import routes
 import assetRoutes from './routes/assetRoutes.js';
@@ -23,13 +25,21 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI;
+const serveFrontend = process.env.SERVE_FRONTEND === 'true';
+const frontendDirectory = fileURLToPath(new URL('../dist/', import.meta.url));
+if (serveFrontend && !existsSync(`${frontendDirectory}/index.html`)) {
+  throw new Error('Frontend build missing. Run npm run build in the repository root first.');
+}
 
 // Middleware
-app.use(cors());
+if (!serveFrontend) {
+  app.use(cors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173'] }));
+}
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
 // MongoDB Connection
+let initializationComplete = false;
 const setupReady = mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -38,6 +48,7 @@ const setupReady = mongoose.connect(MONGODB_URI, {
     await initializeSetup();
     await initializeSuppliers();
     await initializeAssetCatalog();
+    initializationComplete = true;
     console.log('✅ Connected to MongoDB successfully');
   })
   .catch((error) => {
@@ -47,8 +58,10 @@ const setupReady = mongoose.connect(MONGODB_URI, {
 
 // Health check route
 app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'OK',
+  const databaseReady = mongoose.connection.readyState === 1 && initializationComplete;
+  res.status(databaseReady ? 200 : 503).json({
+    status: databaseReady ? 'OK' : 'STARTING',
+    databaseReady,
     message: 'Asset Management API is running',
     timestamp: new Date().toISOString(),
   });
@@ -85,6 +98,9 @@ app.use('/api', async (req, res, next) => {
   }
 });
 
+// Serve only the production build, never the repository or uploads directory.
+if (serveFrontend) app.use(express.static(frontendDirectory, { dotfiles: 'deny' }));
+
 // Root route
 app.get('/', (req, res) => {
   res.json({
@@ -116,7 +132,7 @@ app.use((error, req, res, _next) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, process.env.HOST || '127.0.0.1', () => {
   console.log(`🚀 Asset Management API running on http://localhost:${PORT}`);
   console.log(`📊 Database: MongoDB`);
   console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);

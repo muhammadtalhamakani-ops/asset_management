@@ -1,5 +1,7 @@
 # FieldStock project guide
 
+Temporary public demos and current environment/static serving contracts are documented in [Deployment](DEPLOYMENT.md). This supersedes historical hardcoded API, public registration, CORS, session initialization, and health descriptions below.
+
 ## Evidence and scope
 
 Inspected 2026-10-25. This guide describes repository source, not a verified deployed system. Locations use paths and named symbols or route handlers; line numbers are starting points in the inspected revision. Database connectivity, existing data/indexes, deployment, and browser workflows were not exercised. No prior `AGENTS.md`, migration directory, CI workflow, or automated test suite was found outside installed dependencies.

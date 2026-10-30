@@ -1,6 +1,10 @@
 import crypto from 'node:crypto';
+import 'dotenv/config';
 
-const SESSION_SECRET = process.env.SESSION_SECRET || 'fieldstock-development-session-secret';
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET || SESSION_SECRET.length < 32 || SESSION_SECRET === 'fieldstock-development-session-secret') {
+  throw new Error('SESSION_SECRET must be a private random value of at least 32 characters.');
+}
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
 function sign(payload) {

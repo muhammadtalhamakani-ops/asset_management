@@ -1,5 +1,5 @@
 // API Configuration
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 type ApiFilters = Record<string, string>;
 type ApiPayload = Record<string, unknown>;
 const apiFetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
