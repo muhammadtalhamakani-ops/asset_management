@@ -22,6 +22,8 @@
 
 ## Verification and completion
 
+- Temporary public demos use the local Express production build plus Cloudflare Quick Tunnel; see [deployment guide](docs/DEPLOYMENT.md). A private SESSION_SECRET is required, and registration is disabled by default and always disabled in frontend-serving mode. Demo checks: `npm.cmd run test:demo` from `backend`.
+
 - Run relevant checks and report actual commands, results, and limitations. Root scripts are `npm run lint` and `npm run build`; on Windows use `npm.cmd` when PowerShell blocks `npm.ps1`. Build generates output/cache. Backend syntax can be checked with `node --check <file>` without starting the server.
 - No general repository test suite exists; General Setup has focused tests described below. Use focused manual checks when appropriate, with authorized disposable data for writes; do not claim automated coverage from legacy documentation.
 - General Setup now has focused Node tests: run `npm.cmd run test:setup` from `backend`. Database integration requires explicit `SETUP_TEST_MONGODB_URI` and uses a fresh disposable database. `seed:setup` is additive; the original `seed` remains destructive.

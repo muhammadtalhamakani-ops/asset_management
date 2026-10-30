@@ -1,5 +1,7 @@
 # Existing coding patterns
 
+Deployment update: authentication now loads dotenv before reading a required private session secret; the development fallback is removed. Registration is disabled by default and always disabled when `SERVE_FRONTEND=true`. Frontend requests default to `/api` with a Vite development proxy. See [Deployment](DEPLOYMENT.md) for current CORS, static serving, health readiness, and temporary tunnel behavior; older descriptions below are historical.
+
 The active [Dashboard](DASHBOARD.md) uses the global MongoDB summary endpoint, stable status keys, native SVG charts, persisted extra-card IDs and shared PortalMetric. Counts represent active asset documents; rail filters do not change summary scope.
 
 Asset Register now uses shared authenticated assets/movements/inspections/returns, relation validation, explicit fields, real uploads and soft deletion. See [Asset Register](ASSET_REGISTER.md); these changes supersede the original owner-scoped asset/history examples below. Assembly records remain owner-scoped.
