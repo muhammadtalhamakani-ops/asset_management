@@ -4,6 +4,8 @@ FieldStock runs on this Windows PC. Cloudflare Quick Tunnel publishes the produc
 
 ## Prepare
 
+The login page prefills and disables the demo email field; visitors enter only their password. The demo account is provisioned separately in MongoDB; frontend changes and Git pulls do not create accounts or change passwords. Credentials must not be committed to source or documentation.
+
 Install root and backend dependencies using `npm.cmd ci` in each directory. In `backend/.env`, retain the existing `MONGODB_URI` and configure a private random `SESSION_SECRET` of at least 32 characters. Generate one with `node -e "console.log(require('node:crypto').randomBytes(48).toString('hex'))"`; never commit it. Changing the secret invalidates existing sessions. Environment loading happens before authentication initialization, including when tests import authentication directly.
 
 Download the official Windows AMD64 cloudflared executable into `.tools/cloudflared.exe` from https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe. `.tools/` and `.demo/` are ignored. No domain, Cloudflare login, or inbound router port is required for Quick Tunnel.
